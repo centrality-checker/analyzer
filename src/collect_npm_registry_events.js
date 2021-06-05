@@ -1,6 +1,6 @@
 import { createWriteStream, readFileSync, readdirSync } from "fs";
 import changes from "concurrent-couch-follower";
-import { diff, validRange, SemVer, clean } from "semver";
+import { validRange, SemVer, clean } from "semver";
 import fetch from "node-fetch";
 import { read } from "read-last-lines";
 import validateName from "validate-npm-package-name";
@@ -32,7 +32,7 @@ class RegistryReader {
       ((currentSequence - this.lastSequence) /
         (this.endSequence - this.lastSequence)) *
       100
-    ).toFixed(2);
+    ).toFixed(1);
 
     if (progress == this.lastProgress) return;
 
@@ -42,15 +42,29 @@ class RegistryReader {
 
   async runCollector(endSequence, configOptions) {
     this.endSequence = endSequence;
+    console.log("Start after sequence:", this.lastSequence);
 
     const date = await this.getLastDate();
-    changes(this.dataHandler.bind(this), configOptions);
+
+    return new Promise((resolve, reject) => {
+      this.resolve = resolve;
+
+      this.stream = changes(this.dataHandler.bind(this), configOptions);
+      this.stream.on("error", (err) => {
+        reject(err);
+      });
+    });
   }
 
   dataHandler(data, done) {
     this.printProgress(data.seq);
 
-    if (data.seq >= this.endSequence) return console.log("The end for now!");
+    if (data.seq >= this.endSequence) {
+      this.stream.end();
+      console.log("End before sequence:", this.endSequence);
+      this.resolve(data.seq);
+      return;
+    }
 
     const pkg = clean_pkg(data.doc);
     if (!pkg) return done();
@@ -65,22 +79,18 @@ class RegistryReader {
         pkg.versions[last_version]
       );
 
-      this.createPackageOutputString(
+      this.writeOutputString(
         pkg.name,
         this_version,
         pkg.time[this_version],
         differences
       );
-
-      const release_type = last_version
-        ? diff(last_version, this_version)
-        : "first";
     });
 
     done();
   }
 
-  createPackageOutputString(pkg_name, version, date, differences) {
+  writeOutputString(pkg_name, version, date, differences) {
     for (const data_type in differences) {
       const events = differences[data_type];
 
@@ -242,13 +252,13 @@ const configOptions = {
   db: "https://replicate.npmjs.com",
   include_docs: true,
   sequence: "npm_registry_sequence",
-  now: false,
-  concurrency: 5,
+  now: true,
+  concurrency: 30,
 };
 
 const registry = new RegistryReader(configOptions);
-
 fetch(configOptions.db)
   .then((res) => res.json())
   .then((res) => registry.runCollector(res.update_seq, configOptions))
-  .catch((err) => console.log(err));
+  .catch((err) => console.log("Error:", err))
+  .finally(() => console.log("All Done!"));

@@ -1,19 +1,65 @@
-import { createWriteStream, readFileSync, readdirSync } from "fs";
+import {
+  createWriteStream,
+  readFileSync,
+  readdirSync,
+  existsSync,
+  mkdirSync,
+} from "fs";
 import changes from "concurrent-couch-follower";
 import { validRange, SemVer, clean } from "semver";
 import fetch from "node-fetch";
 import { read } from "read-last-lines";
 import validateName from "validate-npm-package-name";
+import path from "path";
+import lineByLine from "n-readlines";
 
 class RegistryReader {
-  eventsDir = ".";
+  constructor(dataDir = ".") {
+    this.dataDir = dataDir;
+    if (!existsSync(this.dataDir)) {
+      mkdirSync(this.dataDir);
+    }
 
-  constructor() {
+    this.eventsDir = path.join(this.dataDir, "events");
+    if (!existsSync(this.eventsDir)) {
+      mkdirSync(this.eventsDir);
+    }
+
+    this.lastVersionsPath = path.join(this.dataDir, "last_versions.csv");
+
     this.lastSequence = Number(readFileValue("npm_registry_sequence") || 0);
-    const events_path = `${this.eventsDir}/dependency_events_${this.lastSequence}.csv`;
-    this.writable = createWriteStream(events_path, {
+    const eventsPath = `${this.eventsDir}/dependency_events_${this.lastSequence}.csv`;
+    this.writable = createWriteStream(eventsPath, {
       flags: "a",
     });
+    this.loadLastVersions();
+  }
+
+  loadLastVersions() {
+    const lastVersions = new Map();
+    if (!existsSync(this.lastVersionsPath)) {
+      return;
+    }
+
+    const liner = new lineByLine(this.lastVersionsPath);
+    let line, name, version;
+
+    while ((line = liner.next())) {
+      [name, version] = line.split(",");
+      lastVersions.set(name, version);
+    }
+
+    this.lastVersions = lastVersions;
+  }
+
+  saveLastVersions() {
+    const ws = createWriteStream(this.lastVersionsPath, {
+      flags: "w",
+    });
+
+    for (let [pkgName, lastVersion] of this.lastVersions) {
+      ws.write(`${pkgName},${lastVersion}\n`);
+    }
   }
 
   async getLastDate() {
@@ -62,7 +108,8 @@ class RegistryReader {
     if (data.seq >= this.endSequence) {
       this.stream.end();
       console.log("End before sequence:", this.endSequence);
-      this.resolve(data.seq);
+      this.saveLastVersions();
+      this.resolve();
       return;
     }
 
@@ -256,9 +303,9 @@ const configOptions = {
   concurrency: 30,
 };
 
-const registry = new RegistryReader(configOptions);
+const registry = new RegistryReader();
 fetch(configOptions.db)
   .then((res) => res.json())
-  .then((res) => registry.runCollector(res.update_seq, configOptions))
+  .then((data) => registry.runCollector(data.update_seq, configOptions))
   .catch((err) => console.log("Error:", err))
   .finally(() => console.log("All Done!"));

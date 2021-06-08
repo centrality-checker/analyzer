@@ -12,6 +12,7 @@ import { read } from "read-last-lines";
 import validateName from "validate-npm-package-name";
 import path from "path";
 import lineByLine from "n-readlines";
+import { SingleBar, Presets } from "cli-progress";
 
 class RegistryReader {
   constructor(dataDir = ".") {
@@ -73,6 +74,7 @@ class RegistryReader {
     return lines[0].split(",")[2];
   }
 
+  // @deprecated now we use cli-progress
   printProgress(currentSequence) {
     const progress = (
       ((currentSequence - this.lastSequence) /
@@ -87,23 +89,30 @@ class RegistryReader {
   }
 
   async runCollector(endSequence, configOptions) {
+    this.lastDate = await this.getLastDate();
     this.endSequence = endSequence;
-    console.log("Start after sequence:", this.lastSequence);
 
-    const date = await this.getLastDate();
+    console.log("Start after sequence:", this.lastSequence);
+    this.progressBar = new SingleBar(
+      {
+        etaBuffer: 1000,
+        format:
+          "Progress {bar} {percentage}% | ETA: {eta_formatted} | {value}/{total}",
+      },
+      Presets.shades_classic
+    );
+    this.progressBar.start(endSequence - this.lastSequence, 0);
 
     return new Promise((resolve, reject) => {
       this.resolve = resolve;
 
       this.stream = changes(this.dataHandler.bind(this), configOptions);
-      this.stream.on("error", (err) => {
-        reject(err);
-      });
+      this.stream.on("error", (err) => reject(err));
     });
   }
 
   dataHandler(data, done) {
-    this.printProgress(data.seq);
+    this.progressBar.update(data.seq - this.lastSequence);
 
     if (data.seq >= this.endSequence) {
       this.stream.end();

@@ -307,7 +307,6 @@ const configOptions = {
   db: "https://replicate.npmjs.com",
   include_docs: true,
   sequence: "npm_registry_sequence",
-  now: true,
   concurrency: 30,
 };
 

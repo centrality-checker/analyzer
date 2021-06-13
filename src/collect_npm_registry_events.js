@@ -38,6 +38,8 @@ class RegistryReader {
 
   loadLastVersions() {
     const lastVersions = new Map();
+    this.lastVersions = lastVersions;
+
     if (!existsSync(this.lastVersionsPath)) {
       return;
     }
@@ -49,8 +51,6 @@ class RegistryReader {
       [name, version] = line.split(",");
       lastVersions.set(name, version);
     }
-
-    this.lastVersions = lastVersions;
   }
 
   saveLastVersions() {
@@ -95,7 +95,8 @@ class RegistryReader {
     console.log("Start after sequence:", this.lastSequence);
     this.progressBar = new SingleBar(
       {
-        etaBuffer: 1000,
+        etaBuffer: 10000,
+        fps: 5,
         format:
           "Progress {bar} {percentage}% | ETA: {eta_formatted} | {value}/{total}",
       },
@@ -125,7 +126,7 @@ class RegistryReader {
     const pkg = clean_pkg(data.doc);
     if (!pkg) return done();
 
-    const versions_list = getFilteredVersionsList(pkg);
+    const versions_list = this.getFilteredVersionsList(pkg);
 
     versions_list.forEach((this_version, index) => {
       const last_version = versions_list[index - 1];
@@ -160,6 +161,36 @@ class RegistryReader {
         });
       }
     }
+  }
+
+  getFilteredVersionsList(pkg) {
+    let versions_list = Object.keys(pkg.versions);
+
+    // sort versions by the release time
+    versions_list.sort((a, b) => pkg.time[a].localeCompare(pkg.time[b]));
+
+    const result = [];
+    let last_version = new SemVer(this.lastVersions.get(pkg.name) || "0.0.0");
+    versions_list.forEach((version) => {
+      let this_version;
+      try {
+        this_version = new SemVer(version);
+      } catch (e) {
+        // ignore invalid versions
+        return;
+      }
+
+      const verComp = this_version.compare(last_version);
+      if (verComp == -1 || (verComp != 0 && pkg.time[version] < this.lastDate))
+        return;
+
+      result.push(version);
+      last_version = this_version;
+    });
+
+    this.lastVersions.set(pkg.name, last_version);
+
+    return result;
   }
 }
 
@@ -234,38 +265,6 @@ function getArrayDifferences(new_array, old_array) {
   });
 
   return { add: added_elements, delete: deleted_elements };
-}
-
-function getFilteredVersionsList(pkg, not_before, not_after) {
-  let versions_list = Object.keys(pkg.versions);
-
-  // sort versions by the release time
-  versions_list.sort(function (a, b) {
-    return pkg.time[a].localeCompare(pkg.time[b]);
-  });
-
-  const result = [];
-  let last_version;
-  versions_list.forEach(function (version) {
-    // !! NOTE: not necessary for now, we will need it to build the dynamic graph
-    // if (before_date && pkg.time[version] < not_before) return;
-    // if (not_after && pkg.time[version] > not_after) return;
-
-    let this_version;
-    try {
-      this_version = new SemVer(version);
-    } catch (e) {
-      // ignore invalid versions
-      return;
-    }
-
-    if (last_version && this_version.compare(last_version) < 0) return;
-
-    result.push(version);
-    last_version = this_version;
-  });
-
-  return result;
 }
 
 function clean_pkg(doc) {

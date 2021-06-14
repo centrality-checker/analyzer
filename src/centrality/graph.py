@@ -20,12 +20,17 @@ class EdgeType(Enum):
     HAS = 5
 
 
+class EventType(Enum):
+    ADD = "a"
+    DELETE = "d"
+
+
 TTYPES_MAP = {
-    'dependencies': (NodeType.PACKAGE, EdgeType.DEPENDENCY),
-    'devDependencies': (NodeType.PACKAGE, EdgeType.DEV_DEPENDENCY),
-    'maintainers': (NodeType.DEVELOPER, EdgeType.MAINTAINER),
-    'keywords': (NodeType.KEYWORD, EdgeType.USE),
-    'license': (NodeType.LICENSE, EdgeType.HAS),
+    'p': (NodeType.PACKAGE, EdgeType.DEPENDENCY),
+    'd': (NodeType.PACKAGE, EdgeType.DEV_DEPENDENCY),
+    'm': (NodeType.DEVELOPER, EdgeType.MAINTAINER),
+    'k': (NodeType.KEYWORD, EdgeType.USE),
+    'l': (NodeType.LICENSE, EdgeType.HAS),
 }
 # TODO: use the log Library
 
@@ -112,7 +117,7 @@ class PackagesGraph:
         u = self.create_node(NodeType.PACKAGE, pkg_name)
         v = self.create_node(node_type, element)
 
-        if event == 'add':
+        if event == EventType.ADD:
             if edge_type == EdgeType.DEPENDENCY:
                 self.G.add_edge(u, v, prod=True)
             if edge_type == EdgeType.DEV_DEPENDENCY:
@@ -120,7 +125,7 @@ class PackagesGraph:
             else:
                 self.G.add_edge(u, v)
 
-        elif event == 'delete':
+        elif event == EventType.DELETE:
             edge_data = self.G.get_edge_data(u, v)
             if edge_data is None:
                 self.log_error('network_delete', "edge not exist", event)

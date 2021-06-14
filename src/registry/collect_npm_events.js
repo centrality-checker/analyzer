@@ -233,8 +233,8 @@ function getVersionDifferences(new_version, old_version) {
 
 function getVersionData(version) {
   return {
-    dependencies: getValidatedDependencies(version.dependencies),
-    devDependencies: getValidatedDependencies(version.devDependencies),
+    p: getValidatedDependencies(version.dependencies),
+    d: getValidatedDependencies(version.devDependencies),
   };
 }
 
@@ -250,8 +250,8 @@ function getValidatedDependencies(dependencies) {
 }
 
 function getArrayDifferences(new_array, old_array) {
-  if (new_array && !old_array) return { add: new_array };
-  if (!new_array && old_array) return { delete: old_array };
+  if (new_array && !old_array) return { a: new_array };
+  if (!new_array && old_array) return { d: old_array };
 
   const added_elements = [];
   const deleted_elements = old_array.slice(0);
@@ -265,7 +265,7 @@ function getArrayDifferences(new_array, old_array) {
     }
   });
 
-  return { add: added_elements, delete: deleted_elements };
+  return { a: added_elements, d: deleted_elements };
 }
 
 function clean_pkg(doc) {

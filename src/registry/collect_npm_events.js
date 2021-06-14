@@ -78,20 +78,6 @@ class RegistryReader {
     return lines[0].split(",")[2];
   }
 
-  // @deprecated now we use cli-progress
-  printProgress(currentSequence) {
-    const progress = (
-      ((currentSequence - this.lastSequence) /
-        (this.endSequence - this.lastSequence)) *
-      100
-    ).toFixed(1);
-
-    if (progress == this.lastProgress) return;
-
-    this.lastProgress = progress;
-    console.log(progress + "%");
-  }
-
   async runCollector(endSequence, configOptions) {
     this.lastDate = await this.getLastDate();
     this.endSequence = endSequence;

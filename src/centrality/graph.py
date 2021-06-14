@@ -1,43 +1,21 @@
 import networkx as nx
-import re
 from requests.utils import quote
-from enum import Enum
 from dateutil import parser
 
 
-class NodeType(Enum):
-    PACKAGE = 1
-    DEVELOPER = 3
-    KEYWORD = 4
-    LICENSE = 5
+EDGE_DEPENDENCY = 'p'
+EDGE_DEV_DEPENDENCY = 'd'
+
+EVENT_ADD = "a"
+EVENT_DELETE = "d"
 
 
-class EdgeType(Enum):
-    DEPENDENCY = 1
-    DEV_DEPENDENCY = 2
-    MAINTAINER = 3
-    USE = 4
-    HAS = 5
-
-
-class EventType(Enum):
-    ADD = "a"
-    DELETE = "d"
-
-
-TYPES_MAP = {
-    'p': (NodeType.PACKAGE, EdgeType.DEPENDENCY),
-    'd': (NodeType.PACKAGE, EdgeType.DEV_DEPENDENCY),
-    'm': (NodeType.DEVELOPER, EdgeType.MAINTAINER),
-    'k': (NodeType.KEYWORD, EdgeType.USE),
-    'l': (NodeType.LICENSE, EdgeType.HAS),
-}
 # TODO: use the log Library
 
 
 class PackagesGraph:
 
-    def __init__(self, events_source, G=None, directed=True, node_representation='string', target_type={NodeType.PACKAGE}, error_log_path="./errors_graph.csv"):
+    def __init__(self, events_source, G=None, directed=True, error_log_path="./errors_graph.csv"):
 
         if isinstance(G, (nx.Graph, nx.DiGraph)):
             self.G = G
@@ -47,11 +25,6 @@ class PackagesGraph:
             raise Exception('Invalid G parameter')
 
         self.error_writer = open(error_log_path, "w")
-
-        if node_representation == 'tuple':
-            self.create_node = self.create_tuple_node
-        else:
-            self.create_node = self.create_string_node
 
         self.events_source = events_source
 
@@ -98,40 +71,28 @@ class PackagesGraph:
         print(location, line, error)
         pass
 
-    def add_event(self, event, target_type: set(NodeType)):
+    def add_event(self, event):
 
-        pkg_name, _, _, event, event_type, element = event
+        pkg_name, _, _, event_type, edge_type, target = event
 
-        node_type, edge_type = TYPES_MAP[event_type]
+        u = pkg_name
+        v = target
 
-        if node_type not in target_type or len(pkg_name) < 1 or len(element) < 1:
-            return
-
-        # the data should be clean, but if not, we handle it here
-        if node_type != NodeType.PACKAGE:
-            element = re.sub(r"[\x00-\x08\x0b\x0e-\x1f\x7f]", "", element)
-
-        elif not self.is_valid_pkg_name(element):
-            return
-
-        u = self.create_node(NodeType.PACKAGE, pkg_name)
-        v = self.create_node(node_type, element)
-
-        if event == EventType.ADD:
-            if edge_type == EdgeType.DEPENDENCY:
+        if event_type == EVENT_ADD:
+            if edge_type == EDGE_DEPENDENCY:
                 self.G.add_edge(u, v, prod=True)
-            if edge_type == EdgeType.DEV_DEPENDENCY:
+            elif edge_type == EDGE_DEV_DEPENDENCY:
                 self.G.add_edge(u, v, dev=True)
             else:
                 self.G.add_edge(u, v)
 
-        elif event == EventType.DELETE:
+        elif event_type == EVENT_DELETE:
             edge_data = self.G.get_edge_data(u, v)
             if edge_data is None:
-                self.log_error('network_delete', "edge not exist", event)
-            elif edge_type == EdgeType.DEPENDENCY and edge_data.get("dev"):
+                self.log_error('network_delete', "edge not exist", event_type)
+            elif edge_type == EDGE_DEPENDENCY and edge_data.get("dev"):
                 edge_data["prod"] = False
-            elif edge_type == EdgeType.DEV_DEPENDENCY and edge_data.get("prod"):
+            elif edge_type == EDGE_DEV_DEPENDENCY and edge_data.get("prod"):
                 edge_data["dev"] = False
             else:
                 self.G.remove_edge(u, v)

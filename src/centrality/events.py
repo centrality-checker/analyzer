@@ -5,7 +5,7 @@ FILE_PREFIX = "sorted_dependency_events_"
 FILE_SUFFIX = ".csv"
 
 Event = namedtuple("Event", ["pkg_name", "version",
-                             "date", "event", "event_type", "element"])
+                             "date", "event_type", "edge_type", "target"])
 
 
 class EventsReader:

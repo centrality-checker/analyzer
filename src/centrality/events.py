@@ -14,8 +14,8 @@ class EventsReader:
 
     def __iter__(self):
         files = listdir(self.events_dir)
-        filles = filter(fillter_sorted_files, files)
-        filles = sorted(filles, key=file_number)
+        files = filter(is_events_file, files)
+        files = sorted(files, key=file_sequence)
 
         for file in files:
             file_path = path.join(self.events_dir, file)
@@ -23,9 +23,9 @@ class EventsReader:
                 yield Event(*line[:-1].split(',', 5))
 
 
-def fillter_sorted_files(name):
+def is_events_file(name):
     return name.startswith(FILE_PREFIX)
 
 
-def file_number(name):
+def file_sequence(name):
     return int(name[len(FILE_PREFIX):-len(FILE_SUFFIX)])

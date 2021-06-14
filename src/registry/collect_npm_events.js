@@ -7,6 +7,9 @@ import validateName from "validate-npm-package-name";
 import path from "path";
 import lineByLine from "n-readlines";
 import { SingleBar, Presets } from "cli-progress";
+import { promisify } from "util";
+import { exec as _exec } from "child_process";
+const exec = promisify(_exec);
 
 const EVENT_FILE_PREFIX = "sorted_dependency_events_";
 const EVENT_FILE_SUFFIX = ".csv";
@@ -297,9 +300,19 @@ const configOptions = {
   concurrency: 30,
 };
 
+async function orderEvents(unsorted_file) {
+  const f = path.parse(unsorted_file);
+  f.base = "sorted_" + f.base;
+  const sorted_file = path.format(f);
+
+  await exec(`sort -k3 -t, ${unsorted_file} > ${sorted_file}`);
+  return await exec(`rm ${unsorted_file}`);
+}
+
 const registry = new RegistryReader("..");
 fetch(configOptions.db)
   .then((res) => res.json())
   .then((data) => registry.runCollector(data.update_seq, configOptions))
+  .then(() => orderEvents(registry.eventsPath))
   .catch((err) => console.log("Error:", err))
   .finally(() => console.log("All Done!"));

@@ -66,6 +66,7 @@ class RegistryReader {
   async getLastDate() {
     const files = readdirSync(this.eventsDir);
     const event_files = files.filter((s) => s.startsWith("dependency_events"));
+    // TODO: sort the files correctly (as numbers)
     const last_file = event_files.sort()[event_files.length - 1];
     const lines = await read(`${this.eventsDir}/${last_file}`, 1);
 

@@ -14,6 +14,9 @@ import path from "path";
 import lineByLine from "n-readlines";
 import { SingleBar, Presets } from "cli-progress";
 
+const EVENT_FILE_PREFIX = "sorted_dependency_events_";
+const EVENT_FILE_SUFFIX = ".csv";
+
 class RegistryReader {
   constructor(dataDir = ".") {
     this.dataDir = dataDir;
@@ -64,10 +67,10 @@ class RegistryReader {
   }
 
   async getLastDate() {
-    const files = readdirSync(this.eventsDir);
-    const event_files = files.filter((s) => s.startsWith("dependency_events"));
-    // TODO: sort the files correctly (as numbers)
-    const last_file = event_files.sort()[event_files.length - 1];
+    const last_file = readdirSync(this.eventsDir)
+      .filter((s) => s.startsWith(EVENT_FILE_PREFIX))
+      .sort((a, b) => (getFileSequence(a) < getFileSequence(b) ? 1 : -1))[0];
+
     const lines = await read(`${this.eventsDir}/${last_file}`, 1);
 
     if (!lines) return;
@@ -229,6 +232,13 @@ function getVersionDifferences(new_version, old_version) {
   }
 
   return result;
+}
+
+function getFileSequence(name) {
+  return parseInt(
+    name.slice(EVENT_FILE_PREFIX.length, -EVENT_FILE_SUFFIX.length),
+    10
+  );
 }
 
 function getVersionData(version) {

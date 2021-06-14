@@ -9,6 +9,10 @@ import lineByLine from "n-readlines";
 import { SingleBar, Presets } from "cli-progress";
 import { promisify } from "util";
 import { exec as _exec } from "child_process";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const exec = promisify(_exec);
 
 const EVENT_FILE_PREFIX = "sorted_dependency_events_";
@@ -63,7 +67,10 @@ class RegistryReader {
       .filter((s) => s.startsWith(EVENT_FILE_PREFIX))
       .sort((a, b) => (getFileSequence(a) < getFileSequence(b) ? 1 : -1))[0];
 
-    const lines = await read(`${this.eventsDir}/${last_file}`, 1);
+    if (!last_file) return;
+
+    const last_file_path = path.join(this.eventsDir, last_file);
+    const lines = await read(last_file_path, 1);
 
     if (!lines) return;
 
@@ -293,10 +300,12 @@ function clean_pkg(doc) {
   return doc;
 }
 
+const DATA_DIR = path.join(__dirname, "../../../storage/registry/npm");
+
 const configOptions = {
   db: "https://replicate.npmjs.com",
   include_docs: true,
-  sequence: "npm_registry_sequence",
+  sequence: path.join(DATA_DIR, "sequence"),
   concurrency: 30,
 };
 
@@ -309,7 +318,7 @@ async function orderEvents(unsorted_file) {
   return await exec(`rm ${unsorted_file}`);
 }
 
-const registry = new RegistryReader("..");
+const registry = new RegistryReader(DATA_DIR);
 fetch(configOptions.db)
   .then((res) => res.json())
   .then((data) => registry.runCollector(data.update_seq, configOptions))

@@ -5,6 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
+    "collect": "node ./src/registry/collect_npm_events.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {

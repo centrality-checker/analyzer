@@ -1,10 +1,4 @@
-import {
-  createWriteStream,
-  readFileSync,
-  readdirSync,
-  existsSync,
-  mkdirSync,
-} from "fs";
+import { createWriteStream, readFileSync, readdirSync, existsSync } from "fs";
 import changes from "concurrent-couch-follower";
 import { validRange, SemVer, clean } from "semver";
 import fetch from "node-fetch";
@@ -18,24 +12,17 @@ const EVENT_FILE_PREFIX = "sorted_dependency_events_";
 const EVENT_FILE_SUFFIX = ".csv";
 
 class RegistryReader {
-  constructor(dataDir = ".") {
+  constructor(dataDir) {
     this.dataDir = dataDir;
-    if (!existsSync(this.dataDir)) {
-      mkdirSync(this.dataDir);
-    }
-
     this.eventsDir = path.join(this.dataDir, "events");
-    if (!existsSync(this.eventsDir)) {
-      mkdirSync(this.eventsDir);
-    }
-
     this.lastVersionsPath = path.join(this.dataDir, "last_versions.csv");
-
     this.lastSequence = Number(readFileValue("npm_registry_sequence") || 0);
-    const eventsPath = `${this.eventsDir}/dependency_events_${this.lastSequence}.csv`;
-    this.writable = createWriteStream(eventsPath, {
+    this.eventsPath = `${this.eventsDir}/dependency_events_${this.lastSequence}.csv`;
+
+    this.writable = createWriteStream(this.eventsPath, {
       flags: "a",
     });
+
     this.loadLastVersions();
   }
 
@@ -51,7 +38,7 @@ class RegistryReader {
     let line, name, version;
 
     while ((line = liner.next())) {
-      [name, version] = line.split(",");
+      [name, version] = line.toString("utf8").split(",");
       lastVersions.set(name, version);
     }
   }
@@ -64,6 +51,8 @@ class RegistryReader {
     for (let [pkgName, lastVersion] of this.lastVersions) {
       ws.write(`${pkgName},${lastVersion}\n`);
     }
+
+    ws.end();
   }
 
   async getLastDate() {
@@ -107,6 +96,7 @@ class RegistryReader {
 
     if (data.seq >= this.endSequence) {
       this.stream.end();
+      this.progressBar.stop();
       console.log("End before sequence:", this.endSequence);
       this.saveLastVersions();
       this.resolve();
@@ -307,7 +297,7 @@ const configOptions = {
   concurrency: 30,
 };
 
-const registry = new RegistryReader();
+const registry = new RegistryReader("..");
 fetch(configOptions.db)
   .then((res) => res.json())
   .then((data) => registry.runCollector(data.update_seq, configOptions))

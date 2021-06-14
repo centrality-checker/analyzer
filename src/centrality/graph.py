@@ -1,5 +1,5 @@
+import logging
 import networkx as nx
-from requests.utils import quote
 from dateutil import parser
 
 
@@ -10,12 +10,9 @@ EVENT_ADD = "a"
 EVENT_DELETE = "d"
 
 
-# TODO: use the log Library
-
-
 class PackagesGraph:
 
-    def __init__(self, events_source, G=None, directed=True, error_log_path="./errors_graph.csv"):
+    def __init__(self, events_source, G=None, directed=True):
 
         if isinstance(G, (nx.Graph, nx.DiGraph)):
             self.G = G
@@ -24,17 +21,7 @@ class PackagesGraph:
         else:
             raise Exception('Invalid G parameter')
 
-        self.error_writer = open(error_log_path, "w")
-
         self.events_source = events_source
-
-    @staticmethod
-    def create_string_node(type, name):
-        return name
-
-    @staticmethod
-    def create_tuple_node(type, name):
-        return (type, name)
 
     def get_isolated_nodes(self):
         return nx.isolates(self.G)
@@ -56,20 +43,14 @@ class PackagesGraph:
             if view_size > min_size:
                 return view
 
-            print('View of', view_size,
-                  'nodes is not bigger then the minimum size:', min_size)
+            logging.warning('View of', view_size,
+                            'nodes is not bigger then the minimum size:', min_size)
 
             if view_size > largest_size:
                 largest_size = view_size
                 largest_view = view
 
         return largest_view
-
-    def log_error(self, location, error, line):
-        self.error_writer.write(
-            location + ',' + str(error).replace(',', ' ') + ',' + line)
-        print(location, line, error)
-        pass
 
     def add_event(self, event):
 
@@ -89,7 +70,7 @@ class PackagesGraph:
         elif event_type == EVENT_DELETE:
             edge_data = self.G.get_edge_data(u, v)
             if edge_data is None:
-                self.log_error('network_delete', "edge not exist", event_type)
+                logging.error('network_delete', "edge not exist", event_type)
             elif edge_type == EDGE_DEPENDENCY and edge_data.get("dev"):
                 edge_data["prod"] = False
             elif edge_type == EDGE_DEV_DEPENDENCY and edge_data.get("prod"):
@@ -156,9 +137,3 @@ class PackagesGraph:
             dict_result[name] = (value, index, top_list)
 
         return dict_result
-
-    def is_valid_pkg_name(self, name):
-        if name.startswith("@"):
-            name = name[1:]
-
-        return name == quote(name)

@@ -25,7 +25,7 @@ class EventType(Enum):
     DELETE = "d"
 
 
-TTYPES_MAP = {
+TYPES_MAP = {
     'p': (NodeType.PACKAGE, EdgeType.DEPENDENCY),
     'd': (NodeType.PACKAGE, EdgeType.DEV_DEPENDENCY),
     'm': (NodeType.DEVELOPER, EdgeType.MAINTAINER),
@@ -102,7 +102,7 @@ class PackagesGraph:
 
         pkg_name, _, _, event, event_type, element = event
 
-        node_type, edge_type = TTYPES_MAP[event_type]
+        node_type, edge_type = TYPES_MAP[event_type]
 
         if node_type not in target_type or len(pkg_name) < 1 or len(element) < 1:
             return

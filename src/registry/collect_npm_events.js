@@ -10,6 +10,7 @@ import { SingleBar, Presets } from "cli-progress";
 import { promisify } from "util";
 import { exec as _exec } from "child_process";
 import { fileURLToPath } from "url";
+import log from "npmlog";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -81,7 +82,11 @@ class RegistryReader {
     this.lastDate = await this.getLastDate();
     this.endSequence = endSequence;
 
-    console.log("Start after sequence:", this.lastSequence);
+    log.info(
+      "read from registry",
+      "start after sequence: %j",
+      this.lastSequence
+    );
     this.progressBar = new SingleBar(
       {
         etaBuffer: 10000,
@@ -107,7 +112,11 @@ class RegistryReader {
     if (data.seq >= this.endSequence) {
       this.stream.end();
       this.progressBar.stop();
-      console.log("End before sequence:", this.endSequence);
+      log.info(
+        "read from registry",
+        "ends before sequence: %j",
+        this.endSequence
+      );
       this.saveLastVersions();
       this.resolve();
       return;
@@ -318,10 +327,11 @@ async function orderEvents(unsorted_file) {
   return await exec(`rm ${unsorted_file}`);
 }
 
+log.info("process", "started!");
 const registry = new RegistryReader(DATA_DIR);
 fetch(configOptions.db)
   .then((res) => res.json())
   .then((data) => registry.runCollector(data.update_seq, configOptions))
   .then(() => orderEvents(registry.eventsPath))
-  .catch((err) => console.log("Error:", err))
-  .finally(() => console.log("All Done!"));
+  .catch((err) => log.error(err))
+  .finally(() => log.info("process", "all done!"));

@@ -11,7 +11,6 @@ EVENT_DELETE = "d"
 
 
 class PackagesGraph:
-
     def __init__(self, events_source, G=None, directed=True):
 
         if isinstance(G, (nx.Graph, nx.DiGraph)):
@@ -43,8 +42,8 @@ class PackagesGraph:
             if view_size > min_size:
                 return view
 
-            logging.warning('View of', view_size,
-                            'nodes is not bigger then the minimum size:', min_size)
+            logging.warning('view of', view_size,
+                            'nodes is smaller then the minimum size:', min_size)
 
             if view_size > largest_size:
                 largest_size = view_size

@@ -323,7 +323,10 @@ async function orderEvents(unsorted_file) {
   f.base = "sorted_" + f.base;
   const sorted_file = path.format(f);
 
+  log.info("events file", "sorting events by date");
   await exec(`sort -k3 -t, ${unsorted_file} > ${sorted_file}`);
+
+  log.info("events file", "deleting the unsorted file");
   return await exec(`rm ${unsorted_file}`);
 }
 

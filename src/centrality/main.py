@@ -74,20 +74,22 @@ def writ_package_result(pkg_name, timestamp, rank):
         ).encode())
 
 
-def calculate_centrality(events_dir, min_time_scope, max_time_scope):
-    time_scope = min_time_scope
-
+def calculate_centrality(events_dir):
     reader = EventsReader(events_dir=events_dir)
     graph = PackagesGraph(events_source=reader)
-    has_more = graph.build_graph_until(time_scope)
 
-    while has_more:
-        logging.info("Calculating centrality for time scope: %s", time_scope)
-        current_time = parser.parse(time_scope)
+    time_scope = read_last_time_scope() + relativedelta(months=+1)
+
+    while graph.build_graph_until(time_scope):
+        logging.info(
+            "Calculating centrality for time scope: %s",
+            time_scope.strftime("%Y-%m-01")
+        )
 
         pagerank = graph.get_pagerank(sort=False).items()
         pagerank = sorted(pagerank, key=lambda kv: kv[1], reverse=True)
 
+        timestamp = int(time_scope.timestamp())
         rank = 0
         for pkg_name, _ in pagerank:
             rank += 1
@@ -95,37 +97,28 @@ def calculate_centrality(events_dir, min_time_scope, max_time_scope):
                 # we are supporting packages with lowercase names only
                 continue
 
-            writ_package_result(pkg_name, int(current_time.timestamp()), rank)
+            writ_package_result(pkg_name, timestamp, rank)
 
-        stop_time = current_time + relativedelta(months=+1)
-        time_scope = stop_time.strftime("%Y-%m-01")
+        time_scope += relativedelta(months=+1)
 
-        if time_scope > max_time_scope:
-            logging.info("Done!")
-            return
-
-        has_more = graph.build_graph_until(time_scope)
+    write_last_time_scope(time_scope + relativedelta(months=-1))
+    logging.info("Done!")
 
 
 def read_last_time_scope():
     with open(path.join(DATA_DIR, "last_time_scope"), "r") as f:
-        return f.read()
+        return parser.parse(f.read())
 
 
-def write_last_time_scope(time_scope):
+def write_last_time_scope(time_scope: datetime):
     with open(path.join(DATA_DIR, "last_time_scope"), "w") as f:
-        f.write(time_scope)
+        f.write(time_scope.strftime("%Y-%m-01"))
 
 
 def main():
-
-    min_time_scope = read_last_time_scope()
-    max_time_scope = datetime.today().strftime("%Y-%m-01")
-
     events_dir = path.join(DATA_DIR, "./events")
-    calculate_centrality(events_dir, min_time_scope, max_time_scope)
 
-    write_last_time_scope(max_time_scope)
+    calculate_centrality(events_dir)
 
 
 if __name__ == "__main__":

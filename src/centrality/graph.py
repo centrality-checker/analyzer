@@ -75,8 +75,8 @@ class PackagesGraph:
             else:
                 self.G.remove_edge(u, v)
 
-    def build_graph_until(self, stop_time):
-        stop_time = parser.parse(stop_time).isoformat()[:10]
+    def build_graph_until(self, time_scope):
+        stop_time = time_scope.strftime("%Y-%m-01")
 
         logging.info('Building graph until: %s', stop_time)
 

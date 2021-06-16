@@ -9,7 +9,7 @@ Event = namedtuple("Event", ["pkg_name", "version",
 
 
 class EventsReader:
-    def __init__(self, events_dir="./events") -> None:
+    def __init__(self, events_dir):
         self.events_dir = events_dir
 
     def __iter__(self):

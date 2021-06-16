@@ -91,6 +91,10 @@ def calculate_centrality(events_dir, min_time_scope, max_time_scope):
         rank = 0
         for pkg_name, _ in pagerank:
             rank += 1
+            if not pkg_name.islower():
+                # we are supporting packages with lowercase names only
+                continue
+
             writ_package_result(pkg_name, int(current_time.timestamp()), rank)
 
         stop_time = current_time + relativedelta(months=+1)

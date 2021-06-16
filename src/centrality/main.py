@@ -8,7 +8,11 @@ from os import path
 from scipy import stats
 from datetime import datetime
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    format='%(asctime)s %(levelname)-8s %(message)s',
+    level=logging.INFO,
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 DATA_DIR = path.abspath(path.join(
     path.dirname(path.abspath(__file__)),

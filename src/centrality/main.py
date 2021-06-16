@@ -1,6 +1,5 @@
 import logging
 import os
-from posixpath import join
 from graph import PackagesGraph
 from events import EventsReader
 from dateutil import parser

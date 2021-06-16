@@ -92,9 +92,9 @@ def calculate_centrality(events_dir, min_time_scope, max_time_scope):
         stop_time = current_time + relativedelta(months=+1)
         time_scope = stop_time.strftime("%Y-%m-01")
 
-        if time_scope <= max_time_scope:
-            has_more = False
-            continue
+        if time_scope > max_time_scope:
+            logging.info("Done!")
+            return
 
         has_more = graph.build_graph_until(time_scope)
 

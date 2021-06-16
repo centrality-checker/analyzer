@@ -26,8 +26,6 @@ class PackagesGraph:
         return nx.isolates(self.G)
 
     def get_connected_graph_view(self):
-        print('get_connected_graph_view')  # -> bigger view
-
         graph_size = len(self.G.nodes)
         min_size = graph_size * .9
 
@@ -80,11 +78,11 @@ class PackagesGraph:
     def build_graph_until(self, stop_time):
         stop_time = parser.parse(stop_time).isoformat()[:10]
 
-        print('building until', stop_time)
+        logging.info('Building graph until: %s', stop_time)
 
         if hasattr(self, 'last_event'):
             if self.last_event.date[:10] >= stop_time:
-                print("warn: no new events until the targeted time")
+                logging.warning("No new events until the targeted time")
                 return True
 
             self.add_event(self.last_event)

@@ -39,7 +39,7 @@ def writ_package_result(pkg_name, timestamp, rank):
             # get last decline value (number of months)
             while f.read(1) != b',':
                 f.seek(-2, os.SEEK_CUR)
-            decline = int(f.readline().decode())
+            decline = int(f.readline().decode()[:-1] or 0)
 
             # get the result of last 5 month to me used in the decline test
             lines_num = 0
@@ -64,8 +64,7 @@ def writ_package_result(pkg_name, timestamp, rank):
             x.append(timestamp)
             y.append(rank)
 
-            if is_centrality_decline(x, y):
-                decline = +1
+            decline = decline+1 if is_centrality_decline(x, y) else 0
 
         f.write("{},{},{}\n".format(
             timestamp, rank, decline or ""
@@ -89,7 +88,7 @@ def calculate_centrality(events_dir, min_time_scope, max_time_scope):
         rank = 0
         for pkg_name, _ in pagerank:
             rank += 1
-            writ_package_result(pkg_name, current_time.timestamp(), rank)
+            writ_package_result(pkg_name, int(current_time.timestamp()), rank)
 
         stop_time = current_time + relativedelta(months=+1)
         time_scope = stop_time.strftime("%Y-%m-01")

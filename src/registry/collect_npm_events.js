@@ -249,7 +249,8 @@ function getValidatedDependencies(dependencies) {
   return Object.keys(dependencies).filter(function (d) {
     return (
       validRange(dependencies[d]) !== null &&
-      validateName(d).validForOldPackages
+      validateName(d).validForOldPackages &&
+      !d.includes("/.")
     );
   });
 }

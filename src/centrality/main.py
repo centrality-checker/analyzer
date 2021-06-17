@@ -18,8 +18,8 @@ DATA_DIR = path.abspath(path.join(
     path.dirname(path.abspath(__file__)),
     "../../../storage/registry/npm"
 ))
-
 PACKAGES_DIR = path.abspath(path.join(DATA_DIR, "../../npm"))
+LAST_TIME_SCOPE_PATH = path.join(DATA_DIR, "last_time_scope")
 
 
 def is_centrality_decline(x, y,  slope_threshold=0, pvalue_threshold=0.001):
@@ -69,6 +69,8 @@ def writ_package_result(pkg_name, timestamp, rank):
 
             decline = decline+1 if is_centrality_decline(x, y) else 0
 
+        # whatever the pointer is, it always write to the end because
+        # it is opened with 'ab+' mode.
         f.write("{},{},{}\n".format(
             timestamp, rank, decline or ""
         ).encode())
@@ -106,13 +108,18 @@ def calculate_centrality(events_dir):
 
 
 def read_last_time_scope():
-    with open(path.join(DATA_DIR, "last_time_scope"), "r") as f:
+    with open(LAST_TIME_SCOPE_PATH, "r") as f:
         return parser.parse(f.read())
 
 
 def write_last_time_scope(time_scope: datetime):
-    with open(path.join(DATA_DIR, "last_time_scope"), "w") as f:
-        f.write(time_scope.strftime("%Y-%m-01"))
+    new_time_str = time_scope.strftime("%Y-%m-01")
+    with open(LAST_TIME_SCOPE_PATH, "r+") as f:
+        if f.read() == new_time_str:
+            raise Exception("No enough events to cover next time scope")
+
+        f.truncate(0)
+        f.write(new_time_str)
 
 
 def main():

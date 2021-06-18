@@ -115,6 +115,7 @@ def read_last_time_scope():
 def write_last_time_scope(time_scope: datetime):
     new_time_str = time_scope.strftime("%Y-%m-01")
     with open(LAST_TIME_SCOPE_PATH, "r+") as f:
+        # Fail the process if the time scope did not change
         if f.read() == new_time_str:
             raise Exception("No enough events to cover next time scope")
 

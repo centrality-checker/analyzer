@@ -127,15 +127,17 @@ class RegistryReader {
 
     const versionsList = this.getFilteredVersionsList(pkg);
 
-    versionsList.forEach((version, index) => {
+    versionsList.forEach((versionObj, index) => {
       const lastVersion = versionsList[index - 1];
 
-      const differences = getVersionDifferences(
-        pkg.versions[version],
-        pkg.versions[lastVersion]
-      );
+      const differences = getVersionDifferences(versionObj, lastVersion);
 
-      this.writeOutputString(pkg.name, version, pkg.time[version], differences);
+      this.writeOutputString(
+        pkg.name,
+        versionObj.version,
+        versionObj.time,
+        differences
+      );
     });
 
     done();
@@ -158,27 +160,29 @@ class RegistryReader {
   }
 
   getFilteredVersionsList(pkg) {
-    let versionsList = Object.keys(pkg.versions);
-
-    // sort versions by the release time
-    versionsList.sort((a, b) => pkg.time[a].localeCompare(pkg.time[b]));
+    let lastVersion = semver.parse(this.lastVersions.get(pkg.name) || "0.0.0");
 
     const result = [];
-    let lastVersion = semver.parse(this.lastVersions.get(pkg.name) || "0.0.0");
-    versionsList.forEach((strVersion) => {
-      const versionDate = pkg.time[strVersion];
-      if (!versionDate) return;
+    Object.values(pkg.versions)
+      .filter((versionObj) => {
+        const versionDate = pkg.time[versionObj.version];
+        if (!versionDate) return false;
+        versionObj.time = versionDate;
 
-      const version = semver.parse(strVersion);
-      if (!version) return;
+        versionObj.version = semver.clean(versionObj.version);
+        const version = semver.parse(versionObj.version);
+        if (!version) return false;
 
-      const verComp = version.compare(lastVersion);
-      if (verComp == -1 || (verComp != 0 && versionDate < this.lastDate))
-        return;
+        const verComp = version.compare(lastVersion);
+        if (verComp == -1 || (verComp != 0 && versionDate < this.lastDate)) {
+          return false;
+        }
 
-      result.push(strVersion);
-      lastVersion = version;
-    });
+        result.push(versionObj);
+        lastVersion = version;
+        return true;
+      })
+      .sort((a, b) => a.time.localeCompare(b.time));
 
     this.lastVersions.set(pkg.name, lastVersion);
 

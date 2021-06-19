@@ -82,8 +82,7 @@ class PackagesGraph:
 
         if hasattr(self, 'last_event'):
             if self.last_event.date[:10] >= stop_time:
-                logging.warning("No new events until the targeted time")
-                return True
+                raise Exception("No events to cover the target time scope")
 
             self.add_event(self.last_event)
 

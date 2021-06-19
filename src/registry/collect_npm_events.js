@@ -1,6 +1,6 @@
 import { createWriteStream, readFileSync, readdirSync, existsSync } from "fs";
 import changes from "concurrent-couch-follower";
-import { validRange, SemVer, clean } from "semver";
+import semver from "semver";
 import fetch from "node-fetch";
 import { read } from "read-last-lines";
 import validateName from "validate-npm-package-name";
@@ -122,10 +122,8 @@ class RegistryReader {
       return;
     }
 
-    const pkg = clean_pkg(data.doc);
-    if (!pkg) return done();
-
-
+    const pkg = data.doc;
+    if (!isPackage(pkg)) done();
 
     const versionsList = this.getFilteredVersionsList(pkg);
 
@@ -137,12 +135,7 @@ class RegistryReader {
         pkg.versions[lastVersion]
       );
 
-      this.writeOutputString(
-        pkg.name,
-        version,
-        pkg.time[version],
-        differences
-      );
+      this.writeOutputString(pkg.name, version, pkg.time[version], differences);
     });
 
     done();
@@ -171,18 +164,15 @@ class RegistryReader {
     versionsList.sort((a, b) => pkg.time[a].localeCompare(pkg.time[b]));
 
     const result = [];
-    let lastVersion = new SemVer(this.lastVersions.get(pkg.name) || "0.0.0");
+    let lastVersion = semver.parse(this.lastVersions.get(pkg.name) || "0.0.0");
     versionsList.forEach((strVersion) => {
-      let version;
-      try {
-        version = new SemVer(strVersion);
-      } catch (e) {
-        // ignore invalid versions
-        return;
-      }
+      const versionDate = pkg.time[strVersion];
+
+      const version = semver.parse(strVersion);
+      if (!version) return;
 
       const verComp = version.compare(lastVersion);
-      if (verComp == -1 || (verComp != 0 && pkg.time[strVersion] < this.lastDate))
+      if (verComp == -1 || (verComp != 0 && versionDate < this.lastDate))
         return;
 
       result.push(strVersion);
@@ -250,7 +240,7 @@ function getValidatedDependencies(dependencies) {
 
   return Object.keys(dependencies).filter(function (d) {
     return (
-      validRange(dependencies[d]) !== null &&
+      semver.validRange(dependencies[d]) !== null &&
       validateName(d).validForOldPackages &&
       !d.includes("/.")
     );
@@ -276,40 +266,20 @@ function getArrayDifferences(newArray, oldArray) {
   return { a: addedElements, d: deletedElements };
 }
 
-function clean_pkg(doc) {
+function isPackage(doc) {
   if (
     !doc.name ||
     !doc.time ||
     !doc.versions ||
     !doc._id ||
-    doc._id.indexOf("_design/") === 0
-  )
-    return;
-  if (
+    doc._id.indexOf("_design/") === 0 ||
     doc._deleted === true ||
     (doc.error === "not_found" && doc.reason === "deleted")
-  )
-    return;
+  ) {
+    return false;
+  }
 
-  var origVersions = Object.keys(doc.versions);
-  origVersions.forEach(function (version) {
-    var cleaned = clean(version, true);
-    if (cleaned && cleaned !== version) {
-      // clean the version
-      doc.versions[cleaned] = doc.versions[version];
-      delete doc.versions[version];
-
-      doc.versions[cleaned].version = cleaned;
-      doc.versions[cleaned]._id = doc._id + "@" + cleaned;
-
-      if (doc.time[version]) {
-        doc.time[cleaned] = doc.time[version];
-        delete doc.time[version];
-      }
-    }
-  });
-
-  return doc;
+  return true;
 }
 
 const DATA_DIR = path.join(__dirname, "../../../storage/registry/npm");

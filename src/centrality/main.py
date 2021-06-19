@@ -83,14 +83,12 @@ def calculate_centrality(events_dir):
     time_scope = read_last_time_scope() + relativedelta(months=+1)
 
     while graph.build_graph_until(time_scope):
-        logging.info(
-            "Calculating centrality for time scope: %s",
-            time_scope.strftime("%Y-%m-01")
-        )
+        logging.info("Calculating centrality")
 
         pagerank = graph.get_pagerank(sort=False).items()
         pagerank = sorted(pagerank, key=lambda kv: kv[1], reverse=True)
 
+        logging.info("Saving the results for %s packages", len(pagerank))
         timestamp = int(time_scope.timestamp())
         rank = 0
         for pkg_name, _ in pagerank:

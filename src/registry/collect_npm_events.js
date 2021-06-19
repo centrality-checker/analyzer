@@ -64,14 +64,14 @@ class RegistryReader {
   }
 
   async getLastDate() {
-    const last_file = readdirSync(this.eventsDir)
+    const lastFile = readdirSync(this.eventsDir)
       .filter((s) => s.startsWith(EVENT_FILE_PREFIX))
       .sort((a, b) => (getFileSequence(a) < getFileSequence(b) ? 1 : -1))[0];
 
-    if (!last_file) return;
+    if (!lastFile) return;
 
-    const last_file_path = path.join(this.eventsDir, last_file);
-    const lines = await read(last_file_path, 1);
+    const lastFilePath = path.join(this.eventsDir, lastFile);
+    const lines = await read(lastFilePath, 1);
 
     if (!lines) return;
 
@@ -125,20 +125,22 @@ class RegistryReader {
     const pkg = clean_pkg(data.doc);
     if (!pkg) return done();
 
-    const versions_list = this.getFilteredVersionsList(pkg);
 
-    versions_list.forEach((this_version, index) => {
-      const last_version = versions_list[index - 1];
+
+    const versionsList = this.getFilteredVersionsList(pkg);
+
+    versionsList.forEach((version, index) => {
+      const lastVersion = versionsList[index - 1];
 
       const differences = getVersionDifferences(
-        pkg.versions[this_version],
-        pkg.versions[last_version]
+        pkg.versions[version],
+        pkg.versions[lastVersion]
       );
 
       this.writeOutputString(
         pkg.name,
-        this_version,
-        pkg.time[this_version],
+        version,
+        pkg.time[version],
         differences
       );
     });
@@ -146,14 +148,14 @@ class RegistryReader {
     done();
   }
 
-  writeOutputString(pkg_name, version, date, differences) {
-    for (const data_type in differences) {
-      const events = differences[data_type];
+  writeOutputString(pkgName, version, date, differences) {
+    for (const dataType in differences) {
+      const events = differences[dataType];
 
       for (const event in events) {
         events[event].forEach((element) => {
           this.writable.write(
-            `${pkg_name},${version},${date},${event},${data_type},${cleanText(
+            `${pkgName},${version},${date},${event},${dataType},${cleanText(
               element
             )}\n`
           );
@@ -163,31 +165,31 @@ class RegistryReader {
   }
 
   getFilteredVersionsList(pkg) {
-    let versions_list = Object.keys(pkg.versions);
+    let versionsList = Object.keys(pkg.versions);
 
     // sort versions by the release time
-    versions_list.sort((a, b) => pkg.time[a].localeCompare(pkg.time[b]));
+    versionsList.sort((a, b) => pkg.time[a].localeCompare(pkg.time[b]));
 
     const result = [];
-    let last_version = new SemVer(this.lastVersions.get(pkg.name) || "0.0.0");
-    versions_list.forEach((version) => {
-      let this_version;
+    let lastVersion = new SemVer(this.lastVersions.get(pkg.name) || "0.0.0");
+    versionsList.forEach((strVersion) => {
+      let version;
       try {
-        this_version = new SemVer(version);
+        version = new SemVer(strVersion);
       } catch (e) {
         // ignore invalid versions
         return;
       }
 
-      const verComp = this_version.compare(last_version);
-      if (verComp == -1 || (verComp != 0 && pkg.time[version] < this.lastDate))
+      const verComp = version.compare(lastVersion);
+      if (verComp == -1 || (verComp != 0 && pkg.time[strVersion] < this.lastDate))
         return;
 
-      result.push(version);
-      last_version = this_version;
+      result.push(strVersion);
+      lastVersion = version;
     });
 
-    this.lastVersions.set(pkg.name, last_version);
+    this.lastVersions.set(pkg.name, lastVersion);
 
     return result;
   }
@@ -213,17 +215,17 @@ function cleanText(string) {
   }
 }
 
-function getVersionDifferences(new_version, old_version) {
-  const new_version_data = getVersionData(new_version);
-  const old_version_data = old_version ? getVersionData(old_version) : {};
+function getVersionDifferences(newVersion, oldVersion) {
+  const newVersionData = getVersionData(newVersion);
+  const oldVersionData = oldVersion ? getVersionData(oldVersion) : {};
 
   const result = {};
 
-  for (const data_type in new_version_data) {
-    const new_data = new_version_data[data_type] || [];
-    const old_data = old_version_data[data_type] || [];
+  for (const dataType in newVersionData) {
+    const newData = newVersionData[dataType] || [];
+    const oldData = oldVersionData[dataType] || [];
 
-    result[data_type] = getArrayDifferences(new_data, old_data);
+    result[dataType] = getArrayDifferences(newData, oldData);
   }
 
   return result;
@@ -255,23 +257,23 @@ function getValidatedDependencies(dependencies) {
   });
 }
 
-function getArrayDifferences(new_array, old_array) {
-  if (new_array && !old_array) return { a: new_array };
-  if (!new_array && old_array) return { d: old_array };
+function getArrayDifferences(newArray, oldArray) {
+  if (newArray && !oldArray) return { a: newArray };
+  if (!newArray && oldArray) return { d: oldArray };
 
-  const added_elements = [];
-  const deleted_elements = old_array.slice(0);
+  const addedElements = [];
+  const deletedElements = oldArray.slice(0);
 
-  new_array.forEach(function (element) {
-    let index = deleted_elements.indexOf(element);
+  newArray.forEach(function (element) {
+    let index = deletedElements.indexOf(element);
     if (index === -1) {
-      added_elements.push(element);
+      addedElements.push(element);
     } else {
-      deleted_elements.splice(index, 1);
+      deletedElements.splice(index, 1);
     }
   });
 
-  return { a: added_elements, d: deleted_elements };
+  return { a: addedElements, d: deletedElements };
 }
 
 function clean_pkg(doc) {
@@ -319,16 +321,16 @@ const configOptions = {
   concurrency: 30,
 };
 
-async function orderEvents(unsorted_file) {
-  const f = path.parse(unsorted_file);
+async function orderEvents(unsortedFile) {
+  const f = path.parse(unsortedFile);
   f.base = "sorted_" + f.base;
-  const sorted_file = path.format(f);
+  const sortedFile = path.format(f);
 
   log.info("events file", "sorting events by date");
-  await exec(`sort -k3 -t, ${unsorted_file} > ${sorted_file}`);
+  await exec(`sort -k3 -t, ${unsortedFile} > ${sortedFile}`);
 
   log.info("events file", "deleting the unsorted file");
-  return await exec(`rm ${unsorted_file}`);
+  return await exec(`rm ${unsortedFile}`);
 }
 
 log.info("process", "started!");

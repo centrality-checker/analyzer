@@ -167,6 +167,7 @@ class RegistryReader {
     let lastVersion = semver.parse(this.lastVersions.get(pkg.name) || "0.0.0");
     versionsList.forEach((strVersion) => {
       const versionDate = pkg.time[strVersion];
+      if (!versionDate) return;
 
       const version = semver.parse(strVersion);
       if (!version) return;

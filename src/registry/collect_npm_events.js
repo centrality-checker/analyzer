@@ -123,7 +123,7 @@ class RegistryReader {
     }
 
     const pkg = data.doc;
-    if (!isPackage(pkg)) done();
+    if (!isPackage(pkg)) return done();
 
     const versionsList = this.getFilteredVersionsList(pkg);
 
@@ -277,7 +277,7 @@ function isPackage(doc) {
     !doc.time ||
     !doc.versions ||
     !doc._id ||
-    doc._id.indexOf("_design/") === 0 ||
+    doc._id.startsWith("_design/") ||
     doc._deleted === true ||
     (doc.error === "not_found" && doc.reason === "deleted")
   ) {

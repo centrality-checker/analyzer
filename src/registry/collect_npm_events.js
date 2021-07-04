@@ -19,12 +19,15 @@ const exec = promisify(_exec);
 const EVENT_FILE_PREFIX = "sorted_dependency_events_";
 const EVENT_FILE_SUFFIX = ".csv";
 
+const DATA_DIR = path.join(__dirname, "../../../storage/registry/npm");
+const SEQUENCE_PATH = path.join(DATA_DIR, "sequence");
+
 class RegistryReader {
-  constructor(dataDir) {
+  constructor(dataDir, sequencePath) {
     this.dataDir = dataDir;
     this.eventsDir = path.join(this.dataDir, "events");
     this.lastVersionsPath = path.join(this.dataDir, "last_versions.csv");
-    this.lastSequence = Number(readFileValue("npm_registry_sequence") || 0);
+    this.lastSequence = Number(readFileValue(sequencePath) || 0);
     this.eventsPath = `${this.eventsDir}/dependency_events_${this.lastSequence}.csv`;
 
     this.writable = createWriteStream(this.eventsPath, {
@@ -287,12 +290,10 @@ function isPackage(doc) {
   return true;
 }
 
-const DATA_DIR = path.join(__dirname, "../../../storage/registry/npm");
-
 const configOptions = {
   db: "https://replicate.npmjs.com",
   include_docs: true,
-  sequence: path.join(DATA_DIR, "sequence"),
+  sequence: SEQUENCE_PATH,
   concurrency: 30,
 };
 
@@ -309,7 +310,7 @@ async function orderEvents(unsortedFile) {
 }
 
 log.info("process", "started!");
-const registry = new RegistryReader(DATA_DIR);
+const registry = new RegistryReader(DATA_DIR, SEQUENCE_PATH);
 fetch(configOptions.db)
   .then((res) => res.json())
   .then((data) => registry.runCollector(data.update_seq, configOptions))

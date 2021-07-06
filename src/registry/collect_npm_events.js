@@ -29,7 +29,6 @@ class RegistryReader {
     this.lastVersionsPath = path.join(this.dataDir, "last_versions.csv");
     this.lastSequence = Number(readFileValue(sequencePath) || 0);
     this.eventsPath = `${this.eventsDir}/dependency_events_${this.lastSequence}.csv`;
-    this.ended = false;
 
     this.writable = createWriteStream(this.eventsPath, {
       flags: "a",
@@ -111,12 +110,9 @@ class RegistryReader {
   }
 
   dataHandler(data, done) {
-    if (this.ended) return;
-
     this.progressBar.update(data.seq - this.lastSequence);
 
     if (data.seq >= this.endSequence) {
-      this.ended = true;
       this.stream.end();
       this.progressBar.stop();
       log.info(
@@ -298,7 +294,7 @@ const configOptions = {
   db: "https://replicate.npmjs.com",
   include_docs: true,
   sequence: SEQUENCE_PATH,
-  concurrency: 1,
+  concurrency: 30,
 };
 
 async function orderEvents(unsortedFile) {

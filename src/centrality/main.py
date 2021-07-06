@@ -7,11 +7,9 @@ from dateutil.relativedelta import relativedelta
 from os import path
 from scipy import stats
 from datetime import datetime
-from yaspin import yaspin
-
 
 logging.basicConfig(
-    format='\n%(asctime)s %(levelname)-8s %(message)s',
+    format='%(asctime)s %(levelname)-8s %(message)s',
     level=logging.INFO,
     datefmt='%Y-%m-%d %H:%M:%S'
 )
@@ -84,9 +82,6 @@ def calculate_centrality(events_dir):
 
     time_scope = read_last_time_scope() + relativedelta(months=+1)
 
-    sp = yaspin(text="Processing")
-    sp.start()
-
     while graph.build_graph_until(time_scope):
         logging.info("Calculating centrality")
 
@@ -107,8 +102,6 @@ def calculate_centrality(events_dir):
         time_scope += relativedelta(months=+1)
 
     write_last_time_scope(time_scope + relativedelta(months=-1))
-
-    sp.stop()
     logging.info("Done!")
 
 

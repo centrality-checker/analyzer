@@ -294,7 +294,7 @@ const configOptions = {
   db: "https://replicate.npmjs.com",
   include_docs: true,
   sequence: SEQUENCE_PATH,
-  concurrency: 30,
+  concurrency: 1,
 };
 
 async function orderEvents(unsortedFile) {
@@ -308,6 +308,10 @@ async function orderEvents(unsortedFile) {
   log.info("events file", "deleting the unsorted file");
   return await exec(`rm ${unsortedFile}`);
 }
+
+process.on("uncaughtException", (err) => {
+  console.error(err);
+});
 
 log.info("process", "started!");
 const registry = new RegistryReader(DATA_DIR, SEQUENCE_PATH);

@@ -350,5 +350,8 @@ const registry = new RegistryReader(DATA_DIR, SEQUENCE_PATH);
 fetch(configOptions.db)
   .then((res) => res.json())
   .then((data) => registry.runCollector(data.update_seq, configOptions))
-  .catch((err) => log.error(err))
-  .finally(() => log.info("process", "all done!"));
+  .then(() => log.info("process", "all done!"))
+  .catch((err) => {
+    log.error("process", "failed: %j\n", err.message, err.stack);
+    process.exit(1);
+  });

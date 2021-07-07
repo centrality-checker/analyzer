@@ -1,4 +1,10 @@
-import { createWriteStream, readFileSync, readdirSync, existsSync } from "fs";
+import {
+  createWriteStream,
+  readFileSync,
+  readdirSync,
+  existsSync,
+  statSync,
+} from "fs";
 import changes from "concurrent-couch-follower";
 import semver from "semver";
 import fetch from "node-fetch";
@@ -28,10 +34,13 @@ class RegistryReader {
     this.eventsDir = path.join(this.dataDir, "events");
     this.lastVersionsPath = path.join(this.dataDir, "last_versions.csv");
     this.lastSequence = Number(readFileValue(sequencePath) || 0);
-    this.eventsPath = `${this.eventsDir}/dependency_events_${this.lastSequence}.csv`;
+    this.lastFileSeq = this.getLastEventsFileSequence();
+    this.eventsPath = `${this.eventsDir}/dependency_events_${
+      this.lastFileSeq || 0
+    }.csv`;
 
     this.writable = createWriteStream(this.eventsPath, {
-      flags: "a",
+      flags: "w",
     });
 
     this.loadLastVersions();
@@ -66,29 +75,32 @@ class RegistryReader {
     ws.end();
   }
 
-  async getLastDate() {
-    const lastFile = readdirSync(this.eventsDir)
+  getLastEventsFileSequence() {
+    return readdirSync(this.eventsDir)
       .filter((s) => s.startsWith(EVENT_FILE_PREFIX))
-      .sort((a, b) => (getFileSequence(a) < getFileSequence(b) ? 1 : -1))[0];
+      .map((s) => getFileSequence(s))
+      .sort((a, b) => b - a)[0];
+  }
 
-    if (!lastFile) return;
+  async getLastEventDate(sequence) {
+    if (sequence == undefined) return;
 
-    const lastFilePath = path.join(this.eventsDir, lastFile);
-    const lines = await read(lastFilePath, 1);
+    const filePath = `${this.eventsDir}/${EVENT_FILE_PREFIX}${sequence}.csv`;
+    const lastLine = await read(filePath, 1);
+    if (!lastLine) return;
 
-    if (!lines) return;
-
-    return lines[0].split(",")[2];
+    return lastLine.split(",")[2];
   }
 
   async runCollector(endSequence, configOptions) {
-    this.lastDate = await this.getLastDate();
+    this.lastDate = await this.getLastEventDate(this.lastFileSeq);
     this.endSequence = endSequence;
 
     log.info(
       "read from registry",
-      "start after sequence: %j",
-      this.lastSequence
+      "start after sequence: %j - last event was on: %j",
+      this.lastSequence,
+      this.lastDate
     );
     this.progressBar = new SingleBar(
       {
@@ -106,7 +118,7 @@ class RegistryReader {
 
       this.stream = changes(this.dataHandler.bind(this), configOptions);
       this.stream.on("error", (err) => reject(err));
-    });
+    }).then(() => this.orderEvents());
   }
 
   dataHandler(data, done) {
@@ -190,6 +202,38 @@ class RegistryReader {
     this.lastVersions.set(pkg.name, lastVersion);
 
     return result;
+  }
+
+  async orderEvents() {
+    const f = path.parse(this.eventsPath);
+    f.base = "sorted_" + f.base;
+    const sortedFile = path.format(f);
+
+    log.info("events file", "sorting events by date");
+    await exec(`sort -k3 -t, ${this.eventsPath} > ${sortedFile}`);
+
+    log.info("events file", "deleting the unsorted file");
+    await exec(`rm ${this.eventsPath}`);
+
+    var fileSize = statSync(sortedFile).size / (1024 * 1024);
+    if (fileSize < 100) {
+      return;
+    }
+
+    log.info("events file", "split a large file");
+    await exec(`split -l 10000000 ${sortedFile} splitted_`);
+
+    log.debug("events file", "rename the splitted files");
+    const splittedFiles = readdirSync(this.eventsDir)
+      .filter((s) => s.startsWith("splitted_"))
+      .sort();
+
+    const sequence = getFileSequence(f.base);
+    for (const i in splittedFiles) {
+      const from = `${this.eventsDir}/${splittedFiles[i]}`;
+      const to = `${this.eventsDir}/${EVENT_FILE_PREFIX}${sequence + i}.csv`;
+      await exec(`mv ${from} ${to}`);
+    }
   }
 }
 
@@ -297,18 +341,6 @@ const configOptions = {
   concurrency: 1,
 };
 
-async function orderEvents(unsortedFile) {
-  const f = path.parse(unsortedFile);
-  f.base = "sorted_" + f.base;
-  const sortedFile = path.format(f);
-
-  log.info("events file", "sorting events by date");
-  await exec(`sort -k3 -t, ${unsortedFile} > ${sortedFile}`);
-
-  log.info("events file", "deleting the unsorted file");
-  return await exec(`rm ${unsortedFile}`);
-}
-
 process.on("uncaughtException", (err) => {
   console.error(err);
 });
@@ -318,6 +350,5 @@ const registry = new RegistryReader(DATA_DIR, SEQUENCE_PATH);
 fetch(configOptions.db)
   .then((res) => res.json())
   .then((data) => registry.runCollector(data.update_seq, configOptions))
-  .then(() => orderEvents(registry.eventsPath))
   .catch((err) => log.error(err))
   .finally(() => log.info("process", "all done!"));

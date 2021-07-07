@@ -223,7 +223,7 @@ class RegistryReader {
     log.info("events file", "split a large file");
     await exec(`split -l 10000000 ${sortedFile} splitted_`);
 
-    log.debug("events file", "rename the splitted files");
+    log.verbose("events file", "rename the splitted files");
     const splittedFiles = readdirSync(this.eventsDir)
       .filter((s) => s.startsWith("splitted_"))
       .sort();

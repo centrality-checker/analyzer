@@ -36,7 +36,7 @@ class RegistryReader {
     this.lastSequence = Number(readFileValue(sequencePath) || 0);
     this.lastFileSeq = this.getLastEventsFileSequence();
     this.eventsPath = `${this.eventsDir}/dependency_events_${
-      this.lastFileSeq || 0
+      this.lastFileSeq + 1 || 0
     }.csv`;
 
     this.writable = createWriteStream(this.eventsPath, {

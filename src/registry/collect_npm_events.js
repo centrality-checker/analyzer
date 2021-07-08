@@ -78,14 +78,18 @@ class RegistryReader {
   getLastEventsFileSequence() {
     return readdirSync(this.eventsDir)
       .filter((s) => s.startsWith(EVENT_FILE_PREFIX))
-      .map((s) => getFileSequence(s))
+      .map((s) => extractFileSequence(s))
       .sort((a, b) => b - a)[0];
   }
 
-  async getLastEventDate(sequence) {
-    if (sequence == undefined) return;
+  async getLastEventDate(fileSeq) {
+    if (fileSeq == undefined) return;
 
-    const filePath = `${this.eventsDir}/${EVENT_FILE_PREFIX}${sequence}.csv`;
+    const filePath = path.join(
+      this.eventsDir,
+      createFileNameBySequence(fileSeq)
+    );
+
     const lastLine = await read(filePath, 1);
     if (!lastLine) return;
 
@@ -226,13 +230,12 @@ class RegistryReader {
     });
 
     log.verbose("events file", "rename the splitted files");
-    const fileSeq = getFileSequence(f.base);
+    const fileSeq = extractFileSequence(f.base);
     readdirSync(this.eventsDir)
       .filter((s) => s.startsWith("splitted_"))
       .sort()
       .forEach((fileName, i) => {
-        const newFileName = `sorted_dependency_events_${fileSeq + i}.csv`;
-        await exec(`mv ${fileName} ${newFileName}`, {
+        await exec(`mv ${fileName} ${createFileNameBySequence(fileSeq + i)}`, {
           cwd: this.eventsDir,
         });
       });
@@ -275,11 +278,15 @@ function getVersionDifferences(newVersion, oldVersion) {
   return result;
 }
 
-function getFileSequence(name) {
+function extractFileSequence(name) {
   return parseInt(
     name.slice(EVENT_FILE_PREFIX.length, -EVENT_FILE_SUFFIX.length),
     10
   );
+}
+
+function createFileNameBySequence(fileSeq) {
+  return EVENT_FILE_PREFIX + fileSeq + EVENT_FILE_SUFFIX;
 }
 
 function getVersionData(version) {

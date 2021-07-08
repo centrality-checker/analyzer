@@ -221,7 +221,9 @@ class RegistryReader {
     }
 
     log.info("events file", "split a large file");
-    await exec(`split -l 1000000 ${sortedFile} splitted_`);
+    await exec(`split -l 1000000 ${sortedFile} splitted_`, {
+      cwd: this.eventsDir,
+    });
 
     log.verbose("events file", "rename the splitted files");
     const splittedFiles = readdirSync(this.eventsDir)
@@ -230,9 +232,10 @@ class RegistryReader {
 
     const sequence = getFileSequence(f.base);
     for (const i in splittedFiles) {
-      const from = `${this.eventsDir}/${splittedFiles[i]}`;
-      const to = `${this.eventsDir}/${EVENT_FILE_PREFIX}${sequence + i}.csv`;
-      await exec(`mv ${from} ${to}`);
+      const newFileName = `${EVENT_FILE_PREFIX}${sequence + i}.csv`;
+      await exec(`mv ${splittedFiles[i]} ${newFileName}`, {
+        cwd: this.eventsDir,
+      });
     }
   }
 }

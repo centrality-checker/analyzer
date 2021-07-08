@@ -230,15 +230,16 @@ class RegistryReader {
     });
 
     log.verbose("events file", "rename the splitted files");
-    const fileSeq = extractFileSequence(f.base);
-    readdirSync(this.eventsDir)
+    const files = readdirSync(this.eventsDir)
       .filter((s) => s.startsWith("splitted_"))
-      .sort()
-      .forEach((fileName, i) => {
-        await exec(`mv ${fileName} ${createFileNameBySequence(fileSeq + i)}`, {
-          cwd: this.eventsDir,
-        });
+      .sort();
+
+    const fileSeq = extractFileSequence(f.base);
+    for (let i = 0; i < files.length; i++) {
+      await exec(`mv ${files[i]} ${createFileNameBySequence(fileSeq + i)}`, {
+        cwd: this.eventsDir,
       });
+    }
   }
 }
 

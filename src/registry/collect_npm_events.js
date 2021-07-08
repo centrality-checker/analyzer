@@ -226,17 +226,16 @@ class RegistryReader {
     });
 
     log.verbose("events file", "rename the splitted files");
-    const splittedFiles = readdirSync(this.eventsDir)
+    const fileSeq = getFileSequence(f.base);
+    readdirSync(this.eventsDir)
       .filter((s) => s.startsWith("splitted_"))
-      .sort();
-
-    const sequence = getFileSequence(f.base);
-    for (const i in splittedFiles) {
-      const newFileName = `${EVENT_FILE_PREFIX}${sequence + i}.csv`;
-      await exec(`mv ${splittedFiles[i]} ${newFileName}`, {
-        cwd: this.eventsDir,
+      .sort()
+      .forEach((fileName, i) => {
+        const newFileName = `sorted_dependency_events_${fileSeq + i}.csv`;
+        await exec(`mv ${fileName} ${newFileName}`, {
+          cwd: this.eventsDir,
+        });
       });
-    }
   }
 }
 

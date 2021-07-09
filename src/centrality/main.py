@@ -117,7 +117,8 @@ def write_last_time_scope(time_scope: datetime):
         if f.read() == new_time_str:
             raise Exception("No enough events to cover next time scope")
 
-        f.truncate(0)
+        f.seek(0, os.SEEK_SET)  
+        f.truncate()
         f.write(new_time_str)
 
 

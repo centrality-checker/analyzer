@@ -25,14 +25,16 @@ const exec = promisify(_exec);
 const EVENT_FILE_PREFIX = "sorted_dependency_events_";
 const EVENT_FILE_SUFFIX = ".csv";
 
-const DATA_DIR = path.join(__dirname, "../../../storage/registry/npm");
-const SEQUENCE_PATH = path.join(DATA_DIR, "sequence");
+const STORAGE_PATH =
+  process.env.STORAGE_PATH || path.join(__dirname, "../../../storage");
+const REGISTRY_DIR = path.join(STORAGE_PATH, "registry/npm");
+const SEQUENCE_PATH = path.join(REGISTRY_DIR, "sequence");
 
 class RegistryReader {
-  constructor(dataDir, sequencePath) {
-    this.dataDir = dataDir;
-    this.eventsDir = path.join(this.dataDir, "events");
-    this.lastVersionsPath = path.join(this.dataDir, "last_versions.csv");
+  constructor(registryDir, sequencePath) {
+    this.registryDir = registryDir;
+    this.eventsDir = path.join(this.registryDir, "events");
+    this.lastVersionsPath = path.join(this.registryDir, "last_versions.csv");
     this.lastSequence = Number(readFileValue(sequencePath) || 0);
     this.lastFileSeq = this.getLastEventsFileSequence();
     this.eventsPath = `${this.eventsDir}/dependency_events_${
@@ -356,7 +358,7 @@ process.on("uncaughtException", (err) => {
 });
 
 log.info("process", "started!");
-const registry = new RegistryReader(DATA_DIR, SEQUENCE_PATH);
+const registry = new RegistryReader(REGISTRY_DIR, SEQUENCE_PATH);
 fetch(configOptions.db)
   .then((res) => res.json())
   .then((data) => registry.runCollector(data.update_seq, configOptions))

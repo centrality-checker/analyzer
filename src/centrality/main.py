@@ -14,12 +14,13 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-DATA_DIR = path.abspath(path.join(
-    path.dirname(path.abspath(__file__)),
-    "../../../storage/registry/npm"
-))
-PACKAGES_DIR = path.abspath(path.join(DATA_DIR, "../../npm"))
-LAST_TIME_SCOPE_PATH = path.join(DATA_DIR, "last_time_scope")
+STORAGE_PATH = os.environ.get('STORAGE_PATH', path.abspath(path.join(
+    path.dirname(__file__),
+    "../../../storage"
+)))
+REGISTRY_DIR = path.join(STORAGE_PATH, "registry/npm")
+PACKAGES_DIR = path.abspath(path.join(STORAGE_PATH, "npm"))
+LAST_TIME_SCOPE_PATH = path.join(REGISTRY_DIR, "last_time_scope")
 
 
 def is_centrality_decline(x, y,  slope_threshold=0, pvalue_threshold=0.001):
@@ -117,13 +118,13 @@ def write_last_time_scope(time_scope: datetime):
         if f.read() == new_time_str:
             raise Exception("No enough events to cover next time scope")
 
-        f.seek(0, os.SEEK_SET)  
+        f.seek(0, os.SEEK_SET)
         f.truncate()
         f.write(new_time_str)
 
 
 def main():
-    events_dir = path.join(DATA_DIR, "./events")
+    events_dir = path.join(REGISTRY_DIR, "events")
 
     calculate_centrality(events_dir)
 

@@ -2,7 +2,6 @@
 
 set -ex
 
-git pull --ff-only
 git --git-dir=../storage/.git pull --ff-only
 
 npm ci
